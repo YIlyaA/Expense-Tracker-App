@@ -1,0 +1,73 @@
+name: expense_tracker_local
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .envs/.env.local
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    command: ["sh", "/app/docker/start-web-local.sh"]
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailpit:
+        condition: service_started
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .envs/.env.local
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    command: ["sh", "/app/docker/start-celery.sh"]
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - .envs/.env.local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+
+  mailpit:
+    image: axllent/mailpit:v1.26
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  postgres_data:
+    name: expense_tracker_local_postgres_data
+  static_volume:
+    name: expense_tracker_local_static_volume
+  media_volume:
+    name: expense_tracker_local_media_volume

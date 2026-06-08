@@ -1,0 +1,68 @@
+name: expense_tracker_prod
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .envs/.env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+    command: ["sh", "/app/docker/start-web-prod.sh"]
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/').read()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .envs/.env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+    command: ["sh", "/app/docker/start-celery.sh"]
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["with-redis"]
+
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - .envs/.env.prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    profiles: ["with-db"]
+
+volumes:
+  postgres_data:
+    name: expense_tracker_prod_postgres_data
+  static_volume:
+    name: expense_tracker_prod_static_volume
+  media_volume:
+    name: expense_tracker_prod_media_volume

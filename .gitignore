@@ -1,0 +1,25 @@
+# Local DB / vector store
+ruvector.db
+*.db-journal
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Claude Code workspace
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs / backups
+*.log
+*.bak
+
+# Env files (safety net — backend/.envs also ignores these)
+.env
+.env.local
+.env.prod
